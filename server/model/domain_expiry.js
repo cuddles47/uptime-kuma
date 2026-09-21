@@ -18,9 +18,18 @@ let running = false;
  * @returns {string|null} First RDAP server found
  */
 async function getRdapServer(tld) {
+    const rootTld = tld?.split(".").pop();
+    
+    // --- BẮT ĐẦU THÊM HỖ TRỢ .VN ---
+    // Cấp thẳng máy chủ RDAP của VNNIC cho các tên miền đuôi .vn
+    if (rootTld === "vn") {
+        return "https://rdap.vnnic.vn/";
+    }
+    // --- KẾT THÚC THÊM HỖ TRỢ .VN ---
+
     const rdapDnsData = await getRdapDnsData();
     const services = rdapDnsData["services"] ?? [];
-    const rootTld = tld?.split(".").pop();
+    
     if (rootTld) {
         for (const [tlds, urls] of services) {
             if (tlds.includes(rootTld)) {
@@ -220,14 +229,16 @@ class DomainExpiry extends BeanModel {
 
         const tld = parseTld(target);
 
-        // It must be checked first, filter out non-ICANN domains.
-        if (!tld.isIcann) {
+        // --- BẮT ĐẦU THÊM HỖ TRỢ .VN ---
+        // Bỏ qua kiểm tra isIcann nếu tên miền có đuôi là .vn
+        if (!tld.isIcann && !(tld.publicSuffix && tld.publicSuffix.endsWith("vn"))) {
             throw new TranslatableError("domain_expiry_unsupported_is_icann", {
                 // If domain is null, use hostname as fallback for better error message.
                 domain: tld.domain ?? tld.hostname ?? "EMPTY DOMAIN",
                 publicSuffix: tld.publicSuffix,
             });
         }
+        // --- KẾT THÚC THÊM HỖ TRỢ .VN ---
 
         const publicSuffix = tld.publicSuffix;
         const rootTld = publicSuffix.split(".").pop();
@@ -308,7 +319,7 @@ class DomainExpiry extends BeanModel {
      */
     static async sendNotifications(domainName, notificationList) {
         const domain = await DomainExpiry.findByDomainNameOrCreate(domainName);
-        if (!notificationList.length > 0) {
+        if (!notificationList.length > 0)      /** phần notificationList.length > 0 nỳ có cần để >0 không? */
             // fail fast. If no notification is set, all the following checks can be skipped.
             log.debug("domain_expiry", "No notification, no need to send domain notification");
             return;
